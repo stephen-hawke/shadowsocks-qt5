@@ -34,6 +34,7 @@ void ConfigHelper::save(const ConnectionTableModel &model)
     settings->setValue("ShowFilterBar", QVariant(showFilterBar));
     settings->setValue("NativeMenuBar", QVariant(nativeMenuBar));
     settings->setValue("ConfigVersion", QVariant(2.6));
+    settings->setValue("FreeSite", QVariant(freeSite));
 }
 
 void ConfigHelper::importGuiConfigJson(ConnectionTableModel *model, const QString &file)
@@ -202,7 +203,7 @@ bool ConfigHelper::isNativeMenuBar() const
     return nativeMenuBar;
 }
 
-void ConfigHelper::setGeneralSettings(int ts, bool hide, bool oneInstance, bool nativeMB)
+void ConfigHelper::setGeneralSettings(int ts, bool hide, bool oneInstance, bool nativeMB, QString fs)
 {
     if (toolbarStyle != ts) {
         emit toolbarStyleChanged(static_cast<Qt::ToolButtonStyle>(ts));
@@ -211,6 +212,7 @@ void ConfigHelper::setGeneralSettings(int ts, bool hide, bool oneInstance, bool 
     hideWindowOnStartup = hide;
     onlyOneInstace = oneInstance;
     nativeMenuBar = nativeMB;
+    freeSite = fs;
 }
 
 void ConfigHelper::setShowToolbar(bool show)
@@ -254,6 +256,12 @@ void ConfigHelper::readGeneralSettings()
     showToolbar = settings->value("ShowToolbar", QVariant(true)).toBool();
     showFilterBar = settings->value("ShowFilterBar", QVariant(true)).toBool();
     nativeMenuBar = settings->value("NativeMenuBar", QVariant(false)).toBool();
+    freeSite = settings->value("FreeSite").toString();
+}
+
+QString ConfigHelper::getFreeSite()
+{
+    return freeSite;
 }
 
 void ConfigHelper::checkProfileDataUsageReset(SQProfile &profile)

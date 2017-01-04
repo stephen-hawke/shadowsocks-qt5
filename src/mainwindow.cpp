@@ -16,6 +16,8 @@
 #include <QMessageBox>
 #include <QCloseEvent>
 #include <botan/version.h>
+#include <QtNetwork>
+#include <QChar>
 
 MainWindow::MainWindow(ConfigHelper *confHelper, QWidget *parent) :
     QMainWindow(parent),
@@ -95,6 +97,8 @@ MainWindow::MainWindow(ConfigHelper *confHelper, QWidget *parent) :
             this, &MainWindow::onDisconnect);
     connect(ui->actionTestLatency, &QAction::triggered,
             this, &MainWindow::onLatencyTest);
+    connect(ui->actionConnectFreeSite, &QAction::triggered,
+            this, &MainWindow::getIShadowSocksServers);
     connect(ui->actionViewLog, &QAction::triggered,
             this, &MainWindow::onViewLog);
     connect(ui->actionMoveUp, &QAction::triggered, this, &MainWindow::onMoveUp);
@@ -137,6 +141,10 @@ MainWindow::MainWindow(ConfigHelper *confHelper, QWidget *parent) :
     restoreState(configHelper->getMainWindowState());
     ui->connectionView->horizontalHeader()->restoreGeometry(configHelper->getTableGeometry());
     ui->connectionView->horizontalHeader()->restoreState(configHelper->getTableState());
+#ifndef QT_NO_SSL
+    connect(&qnam, SIGNAL(sslErrors(QNetworkReply*,QList<QSslError>)),
+            this, SLOT(sslErrors(QNetworkReply*,QList<QSslError>)));
+#endif
 }
 
 MainWindow::~MainWindow()
@@ -546,3 +554,145 @@ void MainWindow::setupActionIcon()
     ui->actionReportBug->setIcon(QIcon::fromTheme("tools-report-bug",
                                  QIcon::fromTheme("help-faq")));
 }
+
+void MainWindow::onHttpFinished()
+{
+    QVariant possibleRedirectUrl =
+             reply->attribute(QNetworkRequest::RedirectionTargetAttribute);
+
+    /* We'll deduct if the redirection is valid in the redirectUrl function */
+    QUrl _urlRedirectedTo = this->redirectUrl(possibleRedirectUrl.toUrl(),
+                                         _urlRedirectedTo);
+
+    /* If the URL is not empty, we're being redirected. */
+    if(!_urlRedirectedTo.isEmpty()) {
+        //QString text = QString("ConnectionTableModel::onHttpFinished: Redirected to ")
+        //                      .append(_urlRedirectedTo.toString());
+        //qDebug()<<text;
+
+        /* We'll do another request to the redirection url. */
+        reply = this->qnam.get(QNetworkRequest(_urlRedirectedTo));
+    }
+    else {
+        /*
+         * We weren't redirected anymore
+         * so we arrived to the final destination...
+         */
+        //QString text = QString("onHttpFinished: Arrived to ")
+        //                      .append(reply->url().toString());
+        //qDebug()<<text;
+        /* ...so this can be cleared. */
+        _urlRedirectedTo.clear();
+    }
+    reply->deleteLater();
+        //reply = 0;
+}
+
+void MainWindow::onHttpReadyRead()
+{
+    QString strResponse;
+    strResponse.prepend(reply->readAll());
+    //qDebug()<<strResponse;
+    if (strResponse.isNull())
+        return;
+    //取出section with id=free
+    int indexSessionStart = strResponse.indexOf(tr("id=\"free\""));
+    if (indexSessionStart < 0)
+        return;
+    strResponse = strResponse.mid(indexSessionStart);
+    int indexSessionStop = strResponse.indexOf(tr("id=\"purchase\""));
+    if (indexSessionStop < 0)
+        return;
+    strResponse = strResponse.mid(0, indexSessionStop);
+    if (strResponse.isNull())
+        return;
+    //qDebug()<<strResponse;
+    updateItems(strResponse);
+}
+
+void MainWindow::updateItems(QString msg)
+{
+    msg = msg.toLower();
+    for (int i = 0; i < model->rowCount(); ++i) {
+        Connection *con = model->getItem(i)->getConnection();
+        QString serverName = con->getName();
+        int indexStart = msg.indexOf(serverName);
+        QString serverAddr = findFirstTagValue(msg, indexStart, serverName);
+        QString label = tr("密码:");
+        QString password = findFirstTagValue(msg, indexStart, label);
+        label = tr("端口:");
+        QString port = findFirstTagValue(msg, indexStart, label);
+        bool ok = false;
+        uint serverPort = port.toUInt(&ok);
+        if (!ok)
+            return;
+        label = tr("加密方式:");
+        QString method = findFirstTagValue(msg, indexStart, label);
+        con->updateProfile(serverAddr, password, (quint16)serverPort, method);
+        //qDebug()<<serverAddr<<"@"<<password<<":"<<serverPort;
+    }
+    //isValidServer = true;
+    emit message(tr("Server information updated."));
+}
+
+QString MainWindow::findFirstTagValue(QString msg, int indexStart, QString label)
+{
+    indexStart = msg.indexOf(label, indexStart)+label.length();
+    int indexStop = msg.indexOf(tr("<"), indexStart);
+    QString value = msg.mid(indexStart, indexStop - indexStart);
+    for(int i=0; i<value.size(); i++){
+        QChar charNow = value.at(i);
+        if(!charNow.isLetterOrNumber() && charNow!=QChar('-') && charNow!=QChar('.'))
+        {
+            value.remove(charNow);
+        }
+    }
+    return value;
+}
+
+void MainWindow::getIShadowSocksServers()
+{
+    freeSite = configHelper->getFreeSite();
+    QUrl url = freeSite;
+    //QByteArray postData;
+    //postData.append("");
+    QNetworkRequest request;
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "'User-Agent':'Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; WOW64; Trident/5.0)'");
+    request.setAttribute(QNetworkRequest::FollowRedirectsAttribute,	true);
+    request.setUrl(url);
+    reply = qnam.get(request);
+    connect(reply, SIGNAL(finished()), this, SLOT(onHttpFinished()));
+    connect(reply, SIGNAL(readyRead()), this, SLOT(onHttpReadyRead()));
+    emit message(tr("Tring to connect ")+freeSite);
+    //qnam.post(request, postData);
+}
+
+QUrl MainWindow::redirectUrl(const QUrl& possibleRedirectUrl,
+                               const QUrl& oldRedirectUrl) const {
+    QUrl redirectUrl;
+    /*
+     * Check if the URL is empty and
+     * that we aren't being fooled into a infinite redirect loop.
+     * We could also keep track of how many redirects we have been to
+     * and set a limit to it, but we'll leave that to you.
+     */
+    if(!possibleRedirectUrl.isEmpty() &&
+       possibleRedirectUrl != oldRedirectUrl) {
+        redirectUrl = possibleRedirectUrl;
+    }
+    return redirectUrl;
+}
+
+#ifndef QT_NO_SSL
+void MainWindow::sslErrors(QNetworkReply*,const QList<QSslError> &errors)
+{
+    QString errorString;
+    foreach (const QSslError &error, errors) {
+        if (!errorString.isEmpty())
+            errorString += ", ";
+        errorString += error.errorString();
+    }
+
+    reply->ignoreSslErrors();
+}
+#endif

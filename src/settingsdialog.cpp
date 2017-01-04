@@ -35,7 +35,8 @@ void SettingsDialog::onAccepted()
     helper->setGeneralSettings(ui->toolbarStyleComboBox->currentIndex(),
                                ui->hideCheckBox->isChecked(),
                                ui->oneInstanceCheckBox->isChecked(),
-                               ui->nativeMenuBarCheckBox->isChecked());
+                               ui->nativeMenuBarCheckBox->isChecked(),
+                               ui->lineEditFreeSite->text());
     this->accept();
 }
 

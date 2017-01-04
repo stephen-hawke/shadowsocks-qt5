@@ -71,6 +71,14 @@ void Connection::latencyTest()
     }
 }
 
+void Connection::updateProfile(QString servAddr, QString password, quint16 serverPort, QString method)
+{
+    profile.serverAddress = servAddr;
+    profile.password = password;
+    profile.serverPort = serverPort;
+    profile.method = method;
+}
+
 void Connection::start()
 {
     profile.lastTime = QDateTime::currentDateTime();

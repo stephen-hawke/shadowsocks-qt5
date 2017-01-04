@@ -110,7 +110,7 @@
      <x>0</x>
      <y>0</y>
      <width>480</width>
-     <height>30</height>
+     <height>25</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuConnection">
@@ -143,6 +143,7 @@
     <addaction name="actionTestLatency"/>
     <addaction name="actionTestAllLatency"/>
     <addaction name="separator"/>
+    <addaction name="actionConnectFreeSite"/>
     <addaction name="actionViewLog"/>
     <addaction name="separator"/>
     <addaction name="actionMoveUp"/>
@@ -376,6 +377,11 @@
    </property>
    <property name="toolTip">
     <string>Connect to this connection and disconnect any connections currently using  the same local port</string>
+   </property>
+  </action>
+  <action name="actionConnectFreeSite">
+   <property name="text">
+    <string>Connect Free Site</string>
    </property>
   </action>
  </widget>

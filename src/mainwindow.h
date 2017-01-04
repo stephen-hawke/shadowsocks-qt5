@@ -21,6 +21,8 @@
 
 #include <QMainWindow>
 #include <QSortFilterProxyModel>
+#include <QUrl>
+#include <QNetworkAccessManager>
 #include "connectiontablemodel.h"
 #include "confighelper.h"
 #include "statusnotifier.h"
@@ -52,6 +54,14 @@ private:
     void blockChildrenSignals(bool);
     void checkCurrentIndex();
     void setupActionIcon();
+    QNetworkAccessManager qnam;
+    QNetworkReply *reply;
+    QString freeSite;
+    void updateItems(QString msg);
+    QString findFirstTagValue(QString msg, int indexStart, QString label);
+    void getIShadowSocksServers();
+    QUrl redirectUrl(const QUrl& possibleRedirectUrl,
+                                   const QUrl& oldRedirectUrl) const;
 
     static const QUrl issueUrl;
 
@@ -84,6 +94,14 @@ private slots:
     void onFilterToggled(bool);
     void onFilterTextChanged(const QString &text);
     void onQRCodeCapturerResultFound(const QString &uri);
+    void onHttpFinished();
+    void onHttpReadyRead();
+#ifndef QT_NO_SSL
+    void sslErrors(QNetworkReply*,const QList<QSslError> &errors);
+#endif
+
+signals:
+    void message(const QString &);
 
 protected slots:
     void hideEvent(QHideEvent *e);

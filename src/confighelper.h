@@ -66,7 +66,7 @@ public:
     bool isShowToolbar() const;
     bool isShowFilterBar() const;
     bool isNativeMenuBar() const;
-    void setGeneralSettings(int ts, bool hide, bool oneInstance, bool nativeMB);
+    void setGeneralSettings(int ts, bool hide, bool oneInstance, bool nativeMB, QString freeSite);
     void setMainWindowGeometry(const QByteArray &geometry);
     void setMainWindowState(const QByteArray &state);
     void setTableGeometry(const QByteArray &geometry);
@@ -76,6 +76,7 @@ public:
     QByteArray getMainWindowState() const;
     QByteArray getTableGeometry() const;
     QByteArray getTableState() const;
+    QString getFreeSite();
 
 public slots:
     void setShowToolbar(bool show);
@@ -93,6 +94,7 @@ private:
     bool nativeMenuBar;
     QSettings *settings;
     QString configFile;
+    QString freeSite;
 
     void checkProfileDataUsageReset(SQProfile &profile);
 
