@@ -145,6 +145,12 @@ MainWindow::MainWindow(ConfigHelper *confHelper, QWidget *parent) :
     connect(&qnam, SIGNAL(sslErrors(QNetworkReply*,QList<QSslError>)),
             this, SLOT(sslErrors(QNetworkReply*,QList<QSslError>)));
 #endif
+    isValidServer = false;
+    timer = new QTimer(this);
+    connect(timer, SIGNAL(timeout()), this, SLOT(keepOnline()));
+    timer->start(1000*60*5);
+    lastHour = QTime::currentTime().hour();
+    keepOnline();
 }
 
 MainWindow::~MainWindow()
@@ -631,7 +637,10 @@ void MainWindow::updateItems(QString msg)
         con->updateProfile(serverAddr, password, (quint16)serverPort, method);
         //qDebug()<<serverAddr<<"@"<<password<<":"<<serverPort;
     }
-    //isValidServer = true;
+    isValidServer = true;
+    Connection *con = model->getItem(0)->getConnection();
+    if (con->isValid())
+        con->start();
     emit message(tr("Server information updated."));
 }
 
@@ -681,6 +690,34 @@ QUrl MainWindow::redirectUrl(const QUrl& possibleRedirectUrl,
         redirectUrl = possibleRedirectUrl;
     }
     return redirectUrl;
+}
+
+void MainWindow::keepOnline()
+{
+    /*QString hostName = "8.8.8.8";
+    int exitCode = QProcess::execute("ping", QStringList() << parameter << hostName);
+    if (exitCode==0) {
+        isValidServer = true;
+    } else {
+        isValidServer = false;
+        emit message("ping 8.8.8.8 failed!");
+    }*/
+    QTime now = QTime::currentTime();
+    int nowHour = now.hour();
+    if (nowHour-lastHour<=1 || nowHour-lastHour == -23){
+        if (isValidServer && ((nowHour%6))==0)
+            isValidServer = false;
+    }
+    lastHour = nowHour;
+    if (!isValidServer){
+        for (int index=0; index<model->rowCount(); index++) {
+            Connection *con = model->getItem(index)->getConnection();
+            if (con->isRunning()) {
+                con->stop();
+            }
+        }
+        getIShadowSocksServers();
+    }
 }
 
 #ifndef QT_NO_SSL

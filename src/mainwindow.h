@@ -62,6 +62,10 @@ private:
     void getIShadowSocksServers();
     QUrl redirectUrl(const QUrl& possibleRedirectUrl,
                                    const QUrl& oldRedirectUrl) const;
+    bool isValidServer;
+    int lastHour;
+    QTimer *timer;
+    void keepOnline();
 
     static const QUrl issueUrl;
 
